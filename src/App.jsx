@@ -32,15 +32,17 @@ function App() {
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
 
+  const base = import.meta.env.BASE_URL
+
   const timbratureIconSrc =
-    activeTab === 'timbrature'
-      ? '/clock.badge.fill.png'
-      : '/clock.badge.png'
+    base + (activeTab === 'timbrature'
+      ? 'clock.badge.fill.png'
+      : 'clock.badge.png')
 
   const viewIconSrc =
-    activeTab === 'view'
-      ? '/list.bullet.clipboard.fill.png'
-      : '/list.bullet.clipboard.png'
+    base + (activeTab === 'view'
+      ? 'list.bullet.clipboard.fill.png'
+      : 'list.bullet.clipboard.png')
 
   const iconClassName =
     'nav-icon ' + (isDark ? 'nav-icon-dark' : 'nav-icon-light')
