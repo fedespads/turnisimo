@@ -177,6 +177,7 @@ export function TimbraturePage() {
   const [inTime, setInTime] = useState('')
   const [outTime, setOutTime] = useState('')
   const [scheduleState, setScheduleState] = useState(null)
+  const [showBackupPanel, setShowBackupPanel] = useState(false)
 
   const entriesByMonth = useMemo(() => {
     const map = {}
@@ -348,61 +349,85 @@ export function TimbraturePage() {
 
   return (
     <div className="page timbrature-page">
-      <h2 className="page-title">Timbrature</h2>
-
-      <p className="empty-text" style={{ marginBottom: '8px' }}>
-        Oggi è {formatDateLabel(getTodayLocalDate())}
-      </p>
-
       <div
         style={{
           display: 'flex',
-          gap: '8px',
-          marginBottom: '8px',
-          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '0.5rem',
+          marginBottom: '0.5rem',
         }}
       >
+        <h2 className="page-title" style={{ marginBottom: 0 }}>
+          Timbrature
+        </h2>
         <button
           type="button"
-          className="secondary-button"
-          onClick={() => {
-            try {
-              const payload = JSON.stringify(entries)
-              if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(payload).catch(() => {
-                  window.prompt('Copia questo backup:', payload)
-                })
-              } else {
-                window.prompt('Copia questo backup:', payload)
-              }
-            } catch {
-              // ignore
-            }
-          }}
+          className="icon-button-ghost"
+          onClick={() => setShowBackupPanel((v) => !v)}
         >
-          Esporta backup timbrature
-        </button>
-        <button
-          type="button"
-          className="secondary-button"
-          onClick={() => {
-            const json = window.prompt(
-              'Incolla qui il backup timbrature (JSON):',
-            )
-            if (!json) return
-            try {
-              const parsed = JSON.parse(json)
-              if (Array.isArray(parsed)) {
-                setEntries(parsed)
-              }
-            } catch {
-              // ignore
-            }
-          }}
-        >
-          Importa backup timbrature
+          ⚙
         </button>
       </div>
+
+      {showBackupPanel && (
+        <div className="card" style={{ marginBottom: '0.5rem' }}>
+          <h3 className="section-title">Backup</h3>
+          <div
+            style={{
+              display: 'flex',
+              gap: '8px',
+              flexWrap: 'wrap',
+            }}
+          >
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => {
+                try {
+                  const payload = JSON.stringify(entries)
+                  if (
+                    navigator.clipboard &&
+                    navigator.clipboard.writeText
+                  ) {
+                    navigator.clipboard
+                      .writeText(payload)
+                      .catch(() => {
+                        window.prompt('Copia questo backup:', payload)
+                      })
+                  } else {
+                    window.prompt('Copia questo backup:', payload)
+                  }
+                } catch {
+                  // ignore
+                }
+              }}
+            >
+              Esporta backup
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => {
+                const json = window.prompt(
+                  'Incolla qui il backup timbrature (JSON):',
+                )
+                if (!json) return
+                try {
+                  const parsed = JSON.parse(json)
+                  if (Array.isArray(parsed)) {
+                    setEntries(parsed)
+                  }
+                } catch {
+                  // ignore
+                }
+              }}
+            >
+              Importa backup
+            </button>
+          </div>
+        </div>
+      )}
 
       <form className="card timbrature-form" onSubmit={handleAdd}>
         <div className="field-group">

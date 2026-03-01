@@ -73,7 +73,11 @@ function parseScheduleText(text) {
     const person = line.slice(0, firstSpace).trim()
     let restText = line.slice(firstSpace + 1).trim()
 
-    restText = restText.replace(/pausa/gi, '').replace(/\s+/g, ' ')
+    // normalizza testo: rimuovi "pausa", spazi extra e converte 7.30 / 7,30 in 7:30
+    restText = restText
+      .replace(/pausa/gi, '')
+      .replace(/\s+/g, ' ')
+      .replace(/(\d{1,2})[.,](\d{1,2})/g, '$1:$2')
 
     const intervalRegex = /(\d{1,2}(?::\d{1,2})?)\s*\/\s*(\d{1,2}(?::\d{1,2})?)/g
     const intervals = []
