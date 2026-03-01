@@ -2,9 +2,21 @@ import React, { useEffect, useMemo, useState } from 'react'
 import {
   loadTimbratureIndexedDB,
   saveTimbratureIndexedDB,
+  loadScheduleIndexedDB,
 } from './storage'
 
 const STORAGE_KEY = 'turni-simo:timbrature'
+const BACKUP_KEY = 'turni-simo:timbrature:backup'
+const MAIN_PERSON = 'Simo'
+const DAY_ORDER = [
+  'Lunedì',
+  'Martedì',
+  'Mercoledì',
+  'Giovedì',
+  'Venerdì',
+  'Sabato',
+  'Domenica',
+]
 
 function getTodayLocalDate() {
   const now = new Date()
@@ -17,10 +29,33 @@ function getTodayLocalDate() {
 function loadTimbrature() {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return []
-    return parsed
+    let parsedMain = []
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) {
+          parsedMain = parsed
+        }
+      } catch {
+        // ignora, proviamo dal backup
+      }
+    }
+
+    if (parsedMain.length) return parsedMain
+
+    const rawBackup = window.localStorage.getItem(BACKUP_KEY)
+    if (rawBackup) {
+      try {
+        const parsedBackup = JSON.parse(rawBackup)
+        if (Array.isArray(parsedBackup) && parsedBackup.length) {
+          return parsedBackup
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    return []
   } catch {
     return []
   }
@@ -29,6 +64,9 @@ function loadTimbrature() {
 function saveTimbrature(list) {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
+    if (Array.isArray(list) && list.length) {
+      window.localStorage.setItem(BACKUP_KEY, JSON.stringify(list))
+    }
   } catch {
     // ignore
   }
@@ -138,6 +176,7 @@ export function TimbraturePage() {
   const [date, setDate] = useState(() => getTodayLocalDate())
   const [inTime, setInTime] = useState('')
   const [outTime, setOutTime] = useState('')
+  const [scheduleState, setScheduleState] = useState(null)
 
   const entriesByMonth = useMemo(() => {
     const map = {}
@@ -182,12 +221,78 @@ export function TimbraturePage() {
   }, [])
 
   useEffect(() => {
+    let cancelled = false
+
+    loadScheduleIndexedDB()
+      .then((state) => {
+        if (cancelled) return
+        if (!state || !state.baseDate || !Array.isArray(state.rows)) {
+          setScheduleState(null)
+          return
+        }
+        setScheduleState({
+          baseDate: state.baseDate,
+          rows: state.rows,
+        })
+      })
+      .catch(() => {
+        setScheduleState(null)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
     saveTimbrature(entries)
      if (entries && entries.length) {
        // salva anche su IndexedDB, senza bloccare UI
        saveTimbratureIndexedDB(entries)
      }
   }, [entries])
+
+  useEffect(() => {
+    if (!scheduleState || !scheduleState.baseDate || !scheduleState.rows) {
+      return
+    }
+    if (!date) return
+
+    // non sovrascrivere se l'utente ha già messo un orario
+    if (inTime || outTime) return
+
+    const monday = new Date(scheduleState.baseDate)
+    const current = new Date(date)
+    if (Number.isNaN(monday.getTime()) || Number.isNaN(current.getTime())) {
+      return
+    }
+
+    // range valido: da lunedì a domenica inclusi
+    const diffMs = current.setHours(0, 0, 0, 0) -
+      monday.setHours(0, 0, 0, 0)
+    const diffDays = diffMs / (1000 * 60 * 60 * 24)
+    if (diffDays < 0 || diffDays > 6) {
+      return
+    }
+
+    const jsDay = current.getDay() // 0 = domenica, 1 = lunedì ...
+    const index = jsDay === 0 ? 6 : jsDay - 1
+    const dayName = DAY_ORDER[index]
+
+    const rowsForDay = scheduleState.rows.filter(
+      (row) => row.day === dayName && row.person === MAIN_PERSON && !row.rest,
+    )
+    if (!rowsForDay.length) return
+
+    const intervals = rowsForDay[0].intervals || []
+    if (!intervals.length) return
+
+    const first = intervals[0]
+    if (!first.start || !first.end) return
+
+    setInTime(first.start)
+    setOutTime(first.end)
+  }, [date, inTime, outTime, scheduleState])
 
   function handleAdd(e) {
     e.preventDefault()
@@ -244,6 +349,60 @@ export function TimbraturePage() {
   return (
     <div className="page timbrature-page">
       <h2 className="page-title">Timbrature</h2>
+
+      <p className="empty-text" style={{ marginBottom: '8px' }}>
+        Oggi è {formatDateLabel(getTodayLocalDate())}
+      </p>
+
+      <div
+        style={{
+          display: 'flex',
+          gap: '8px',
+          marginBottom: '8px',
+          flexWrap: 'wrap',
+        }}
+      >
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={() => {
+            try {
+              const payload = JSON.stringify(entries)
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(payload).catch(() => {
+                  window.prompt('Copia questo backup:', payload)
+                })
+              } else {
+                window.prompt('Copia questo backup:', payload)
+              }
+            } catch {
+              // ignore
+            }
+          }}
+        >
+          Esporta backup timbrature
+        </button>
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={() => {
+            const json = window.prompt(
+              'Incolla qui il backup timbrature (JSON):',
+            )
+            if (!json) return
+            try {
+              const parsed = JSON.parse(json)
+              if (Array.isArray(parsed)) {
+                setEntries(parsed)
+              }
+            } catch {
+              // ignore
+            }
+          }}
+        >
+          Importa backup timbrature
+        </button>
+      </div>
 
       <form className="card timbrature-form" onSubmit={handleAdd}>
         <div className="field-group">

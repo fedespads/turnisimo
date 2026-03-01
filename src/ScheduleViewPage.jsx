@@ -119,17 +119,19 @@ const SCHEDULE_STORAGE_KEY = 'turni-simo:schedule-text'
 function loadScheduleLocal() {
   try {
     const raw = window.localStorage.getItem(SCHEDULE_STORAGE_KEY)
-    if (!raw) return { text: '', rows: [] }
+    if (!raw) return { text: '', rows: [], baseDate: '' }
     const parsed = JSON.parse(raw)
     if (!parsed || typeof parsed !== 'object') {
-      return { text: '', rows: [] }
+      return { text: '', rows: [], baseDate: '' }
     }
     return {
       text: typeof parsed.text === 'string' ? parsed.text : '',
       rows: Array.isArray(parsed.rows) ? parsed.rows : [],
+      baseDate:
+        typeof parsed.baseDate === 'string' ? parsed.baseDate : '',
     }
   } catch {
-    return { text: '', rows: [] }
+    return { text: '', rows: [], baseDate: '' }
   }
 }
 
@@ -145,6 +147,7 @@ export function ScheduleViewPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [text, setText] = useState('')
   const [rows, setRows] = useState([])
+  const [baseDate, setBaseDate] = useState('')
   const [onlyWithMe, setOnlyWithMe] = useState(false)
 
   const daysHeaderRef = useRef(null)
@@ -154,7 +157,7 @@ export function ScheduleViewPage() {
     const parsed = parseScheduleText(text)
     setRows(parsed)
     setIsModalOpen(false)
-    const state = { text, rows: parsed }
+    const state = { text, rows: parsed, baseDate }
     saveScheduleLocal(state)
     saveScheduleIndexedDB(state)
   }
@@ -187,6 +190,7 @@ export function ScheduleViewPage() {
     if (local.text) {
       setText(local.text)
       setRows(parseScheduleText(local.text))
+      if (local.baseDate) setBaseDate(local.baseDate)
     }
 
     let cancelled = false
@@ -195,6 +199,7 @@ export function ScheduleViewPage() {
       if (state && state.text) {
         setText(state.text)
         setRows(parseScheduleText(state.text))
+        if (state.baseDate) setBaseDate(state.baseDate)
       }
     })
 
@@ -276,7 +281,7 @@ export function ScheduleViewPage() {
         for (const mr of mainRanges) {
           const start = Math.max(r.start, mr.start)
           const end = Math.min(r.end, mr.end)
-          if (end - start >= 30) {
+          if (end - start > 0) {
             return true
           }
         }
@@ -306,7 +311,7 @@ export function ScheduleViewPage() {
         for (const mr of mainRanges) {
           const start = Math.max(r.start, mr.start)
           const end = Math.min(r.end, mr.end)
-          if (end - start >= 30) {
+          if (end - start > 0) {
             return true
           }
         }
@@ -321,6 +326,19 @@ export function ScheduleViewPage() {
     const mins = minutes % 60
     if (!mins) return `${hours}h`
     return `${hours}h ${String(mins).padStart(2, '0')}m`
+  }
+
+  function getDateForDay(day) {
+    if (!baseDate) return null
+    const monday = new Date(baseDate)
+    if (Number.isNaN(monday.getTime())) return null
+
+    const dayIndex = DAY_ORDER.indexOf(day)
+    if (dayIndex === -1) return null
+
+    const d = new Date(monday)
+    d.setDate(d.getDate() + dayIndex)
+    return d
   }
 
   return (
@@ -430,7 +448,12 @@ export function ScheduleViewPage() {
                 >
                   <thead>
                     <tr style={{ height: '48px' }}>
-                      {activeDays.map((day, index) => (
+                      {activeDays.map((day) => {
+                        const dateForDay = getDateForDay(day)
+                        const dayNumber = dateForDay
+                          ? String(dateForDay.getDate()).padStart(2, '0')
+                          : ''
+                        return (
                         <th
                           key={day}
                           style={{
@@ -458,11 +481,12 @@ export function ScheduleViewPage() {
                                 color: 'var(--muted-text)',
                               }}
                             >
-                              {String(index + 1).padStart(2, '0')}
+                              {dayNumber}
                             </span>
                           </div>
                         </th>
-                      ))}
+                        )
+                      })}
                       <th
                         style={{
                           textAlign: 'left',
@@ -696,6 +720,18 @@ export function ScheduleViewPage() {
         <div className="modal-backdrop">
           <div className="card modal-card">
             <h3 className="section-title">Incolla testo turni</h3>
+            <div className="field-group">
+              <label className="field-label" htmlFor="baseDate">
+                Lunedì della settimana
+              </label>
+              <input
+                id="baseDate"
+                type="date"
+                className="field-input"
+                value={baseDate}
+                onChange={(event) => setBaseDate(event.target.value)}
+              />
+            </div>
             <textarea
               className="field-textarea"
               rows={10}

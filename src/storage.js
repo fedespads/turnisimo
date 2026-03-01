@@ -94,12 +94,14 @@ export async function loadScheduleIndexedDB() {
       request.onsuccess = () => resolve(request.result || null)
       request.onerror = () => reject(request.error)
     })
-    if (!result) return { text: '', rows: [] }
+    if (!result) return { text: '', rows: [], baseDate: '' }
     return {
       text: typeof result.text === 'string' ? result.text : '',
       rows: Array.isArray(result.rows) ? result.rows : [],
+      baseDate:
+        typeof result.baseDate === 'string' ? result.baseDate : '',
     }
   } catch {
-    return { text: '', rows: [] }
+    return { text: '', rows: [], baseDate: '' }
   }
 }
