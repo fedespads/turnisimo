@@ -171,6 +171,30 @@ function getDurationHours(inTime, outTime) {
   return hoursText + ':' + minutesText
 }
 
+function normalizeScheduleTime(raw) {
+  if (!raw) return ''
+  let value = String(raw).trim()
+  if (!value) return ''
+
+  // converte formati tipo 7.30 o 7,30 in 7:30
+  value = value.replace(/(\d{1,2})[.,](\d{1,2})/g, '$1:$2')
+
+  if (value.indexOf(':') !== -1) {
+    const parts = value.split(':')
+    const h = parseInt(parts[0], 10)
+    const m = parseInt(parts[1] || '0', 10)
+    if (Number.isNaN(h) || Number.isNaN(m)) return ''
+    const hh = String(h).padStart(2, '0')
+    const mm = String(m).padStart(2, '0')
+    return hh + ':' + mm
+  }
+
+  const h = parseInt(value, 10)
+  if (Number.isNaN(h)) return ''
+  const hh = String(h).padStart(2, '0')
+  return hh + ':00'
+}
+
 export function TimbraturePage() {
   const [entries, setEntries] = useState([])
   const [date, setDate] = useState(() => getTodayLocalDate())
@@ -289,10 +313,12 @@ export function TimbraturePage() {
     if (!intervals.length) return
 
     const first = intervals[0]
-    if (!first.start || !first.end) return
+    const start = normalizeScheduleTime(first.start)
+    const end = normalizeScheduleTime(first.end)
+    if (!start || !end) return
 
-    setInTime(first.start)
-    setOutTime(first.end)
+    setInTime(start)
+    setOutTime(end)
   }, [date, inTime, outTime, scheduleState])
 
   function handleAdd(e) {
@@ -471,7 +497,7 @@ export function TimbraturePage() {
         </div>
 
         <button type="submit" className="primary-button">
-          Salva timbratura
+          Conferma timbratura
         </button>
       </form>
 
