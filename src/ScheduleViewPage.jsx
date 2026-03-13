@@ -34,44 +34,131 @@ function normalizeTime(raw) {
 }
 
 function parseScheduleText(text) {
-  const lines = text
+  // 1) Normalizza il testo: spezza sui nomi dei giorni anche se sono in mezzo alla frase
+  const dayNamesPattern = DAY_ORDER.join('|')
+  const daySplitterRegex = new RegExp(`\\b(${dayNamesPattern})\\s*[:;]`, 'gi')
+
+  const normalizedText = text.replace(daySplitterRegex, '\n$1:\n')
+
+  const baseLines = normalizedText
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter((line) => line.length > 0)
 
   const rows = []
-  let currentDay = null
+  const debug = {
+    timestamp: new Date().toISOString(),
+    rawText: text,
+    normalizedText,
+    lines: baseLines.map((line, index) => ({ index, text: line })),
+    steps: [],
+    rowsByDayAndPerson: {},
+  }
 
-  lines.forEach((line) => {
-    if (line.endsWith(':')) {
-      const header = line.slice(0, -1).trim()
-      const dayName = header.replace(/^Turni\s+/i, '').trim()
-      currentDay = dayName || null
-      return
+  const ensureDayPersonBucket = (day, person) => {
+    if (!day || !person) return
+    if (!debug.rowsByDayAndPerson[day]) debug.rowsByDayAndPerson[day] = {}
+    if (!debug.rowsByDayAndPerson[day][person]) {
+      debug.rowsByDayAndPerson[day][person] = {
+        rest: false,
+        intervals: [],
+        raw: '',
+      }
+    }
+    return debug.rowsByDayAndPerson[day][person]
+  }
+
+  const splitDayBodyToPersonLines = (body) => {
+    const result = []
+    if (!body || !body.trim()) return result
+
+    const nameRegex = /(?:^|[\s,])([A-ZÀ-ÖØ-Ý][a-zÀ-ÖØ-öø-ÿ]*)\b/g
+    let lastStart = null
+    let match
+
+    while ((match = nameRegex.exec(body)) !== null) {
+      const fullMatch = match[0]
+      const nameStart = match.index + (fullMatch.startsWith(' ') || fullMatch.startsWith(',') ? 1 : 0)
+
+      if (lastStart !== null) {
+        const segment = body.slice(lastStart, nameStart).trim()
+        if (segment) result.push(segment)
+      }
+      lastStart = nameStart
     }
 
-    if (!currentDay) return
+    if (lastStart !== null) {
+      const tail = body.slice(lastStart).trim()
+      if (tail) result.push(tail)
+    }
 
-    const lower = line.toLowerCase()
-    if (lower.indexOf('riposo') !== -1) {
-      const parts = line.split(/\s+/)
-      const person = parts[0]
-      if (!person) return
-      rows.push({
-        day: currentDay,
-        person,
-        rest: true,
-        intervals: [],
-        raw: 'Riposo',
+    return result
+  }
+
+  const dayHeaderRegex = new RegExp(`^(${dayNamesPattern})\\s*:\\s*(.*)$`, 'i')
+
+  const parsePersonLine = (day, line, originalIndex) => {
+    const trimmed = line.trim()
+    if (!trimmed) return
+
+    const firstSpace = trimmed.indexOf(' ')
+    if (firstSpace === -1) {
+      debug.steps.push({
+        type: 'skipLineNoSpace',
+        day,
+        lineIndex: originalIndex,
+        lineText: trimmed,
       })
       return
     }
 
-    const firstSpace = line.indexOf(' ')
-    if (firstSpace === -1) return
+    const person = trimmed.slice(0, firstSpace).trim()
+    let restText = trimmed.slice(firstSpace + 1).trim()
 
-    const person = line.slice(0, firstSpace).trim()
-    let restText = line.slice(firstSpace + 1).trim()
+    if (!person || !restText) {
+      debug.steps.push({
+        type: 'skipLineEmptyParts',
+        day,
+        lineIndex: originalIndex,
+        lineText: trimmed,
+        person,
+        restText,
+      })
+      return
+    }
+
+    const restTextLower = restText.toLowerCase()
+    const isRestWord = restTextLower.indexOf('riposo') !== -1
+    const isRestLetter = /^r\b/.test(restTextLower) && !/\d/.test(restText)
+
+    if (isRestWord || isRestLetter) {
+      const rawValue = isRestWord ? 'Riposo' : restText
+      rows.push({
+        day,
+        person,
+        rest: true,
+        intervals: [],
+        raw: rawValue,
+      })
+      const bucket = ensureDayPersonBucket(day, person)
+      if (bucket) {
+        bucket.rest = true
+        bucket.intervals = []
+        bucket.raw = rawValue
+      }
+      debug.steps.push({
+        type: 'restRow',
+        day,
+        lineIndex: originalIndex,
+        lineText: trimmed,
+        person,
+        reason: isRestWord ? 'riposoWord' : 'rLetter',
+        rawRestText: restText,
+      })
+      return
+    }
+
+    const originalRestText = restText
 
     // normalizza testo: rimuovi "pausa", spazi extra e converte 7.30 / 7,30 in 7:30
     restText = restText
@@ -81,6 +168,7 @@ function parseScheduleText(text) {
 
     const intervalRegex = /(\d{1,2}(?::\d{1,2})?)\s*\/\s*(\d{1,2}(?::\d{1,2})?)/g
     const intervals = []
+    const intervalsRaw = []
     let match
 
     while ((match = intervalRegex.exec(restText)) !== null) {
@@ -88,15 +176,99 @@ function parseScheduleText(text) {
       const end = normalizeTime(match[2])
       if (start && end) {
         intervals.push({ start, end })
+        intervalsRaw.push({ startRaw: match[1], endRaw: match[2] })
       }
     }
 
     rows.push({
-      day: currentDay,
+      day,
       person,
       rest: false,
       intervals,
       raw: restText,
+    })
+
+    const bucket = ensureDayPersonBucket(day, person)
+    if (bucket) {
+      bucket.rest = false
+      bucket.intervals = intervals.slice()
+      bucket.raw = restText
+    }
+
+    debug.steps.push({
+      type: 'row',
+      day,
+      lineIndex: originalIndex,
+      lineText: trimmed,
+      person,
+      rest: false,
+      originalRestText,
+      normalizedRestText: restText,
+      intervalsRaw,
+      intervals: intervals.slice(),
+    })
+  }
+
+  let currentDay = null
+
+  baseLines.forEach((line, index) => {
+    const headerMatch = dayHeaderRegex.exec(line)
+    dayHeaderRegex.lastIndex = 0
+
+    if (headerMatch) {
+      const rawDay = headerMatch[1].trim()
+      const bodyPart = headerMatch[2].trim()
+
+      const parsedDay =
+        DAY_ORDER.find((d) => d.toLowerCase() === rawDay.toLowerCase()) ||
+        rawDay
+
+      currentDay = parsedDay
+      debug.steps.push({
+        type: 'dayHeader',
+        lineIndex: index,
+        lineText: line,
+        parsedDay: currentDay,
+      })
+
+      if (bodyPart) {
+        const personLines = splitDayBodyToPersonLines(bodyPart)
+        personLines.forEach((personLine, idx) => {
+          debug.steps.push({
+            type: 'splitPersonLine',
+            fromLineIndex: index,
+            day: currentDay,
+            personLineIndex: idx,
+            personLine,
+          })
+          parsePersonLine(currentDay, personLine, index)
+        })
+      }
+      return
+    }
+
+    if (!currentDay) {
+      // riga introduttiva/testo libero prima dell'inizio dei turni
+      debug.steps.push({
+        type: 'introLine',
+        lineIndex: index,
+        lineText: line,
+      })
+      return
+    }
+
+    const personLines = splitDayBodyToPersonLines(line)
+    if (!personLines.length) return
+
+    personLines.forEach((personLine, idx) => {
+      debug.steps.push({
+        type: 'splitPersonLine',
+        fromLineIndex: index,
+        day: currentDay,
+        personLineIndex: idx,
+        personLine,
+      })
+      parsePersonLine(currentDay, personLine, index)
     })
   })
 
@@ -115,7 +287,41 @@ function parseScheduleText(text) {
     return 0
   })
 
-  return rows
+  const result = rows
+
+  try {
+    const payload = {
+      ...debug,
+      resultRows: result,
+      resultRowCount: result.length,
+    }
+
+    if (typeof window !== 'undefined') {
+      try {
+        window.localStorage.setItem(
+          'turni-simo:last-parse-log',
+          JSON.stringify(payload),
+        )
+      } catch {
+        // ignore localStorage errors
+      }
+
+      try {
+        // variabile globale per copia/incolla veloce da console
+        window.__TURNI_LAST_PARSE_LOG__ = payload
+      } catch {
+        // ignore
+      }
+    }
+
+    if (typeof console !== 'undefined' && console.log) {
+      console.log('[Turni Simo] parseScheduleText debug log', payload)
+    }
+  } catch {
+    // qualsiasi errore nel logging non deve rompere il parsing
+  }
+
+  return result
 }
 
 const SCHEDULE_STORAGE_KEY = 'turni-simo:schedule-text'
