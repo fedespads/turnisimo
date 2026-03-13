@@ -13,6 +13,17 @@ const DAY_ORDER = [
 
 const MAIN_PERSON = 'Simo'
 
+const PERSON_ORDER = [
+  'Simo',
+  'Viola',
+  'Nico',
+  'Maria',
+  'Ele',
+  'Isma',
+  'Katerina',
+  'Daniela',
+]
+
 function normalizeTime(raw) {
   const value = raw.trim()
   if (!value) return ''
@@ -31,6 +42,17 @@ function normalizeTime(raw) {
   if (Number.isNaN(h)) return ''
   const hh = String(h).padStart(2, '0')
   return hh + ':00'
+}
+
+function normalizePersonName(raw) {
+  const value = (raw || '').trim()
+  if (!value) return value
+
+  const lower = value.toLowerCase()
+  if (lower === 'dani') return 'Daniela'
+  if (lower === 'kate') return 'Katerina'
+
+  return value
 }
 
 function parseScheduleText(text) {
@@ -112,7 +134,8 @@ function parseScheduleText(text) {
       return
     }
 
-    const person = trimmed.slice(0, firstSpace).trim()
+    const rawPerson = trimmed.slice(0, firstSpace).trim()
+    const person = normalizePersonName(rawPerson)
     let restText = trimmed.slice(firstSpace + 1).trim()
 
     if (!person || !restText) {
@@ -122,6 +145,7 @@ function parseScheduleText(text) {
         lineIndex: originalIndex,
         lineText: trimmed,
         person,
+        rawPerson,
         restText,
       })
       return
@@ -152,6 +176,7 @@ function parseScheduleText(text) {
         lineIndex: originalIndex,
         lineText: trimmed,
         person,
+        rawPerson,
         reason: isRestWord ? 'riposoWord' : 'rLetter',
         rawRestText: restText,
       })
@@ -201,6 +226,7 @@ function parseScheduleText(text) {
       lineIndex: originalIndex,
       lineText: trimmed,
       person,
+      rawPerson,
       rest: false,
       originalRestText,
       normalizedRestText: restText,
@@ -422,8 +448,21 @@ export function ScheduleViewPage() {
     rows.some((row) => row.day === day),
   )
 
+  const getPersonOrderIndex = (name) => {
+    if (!name) return -1
+    const lower = name.toLowerCase()
+    return PERSON_ORDER.findIndex((p) => p.toLowerCase() === lower)
+  }
+
   const people = Array.from(new Set(rows.map((row) => row.person))).sort(
-    (a, b) => a.localeCompare(b),
+    (a, b) => {
+      const ia = getPersonOrderIndex(a)
+      const ib = getPersonOrderIndex(b)
+      if (ia !== -1 && ib !== -1) return ia - ib
+      if (ia !== -1) return -1
+      if (ib !== -1) return 1
+      return a.localeCompare(b)
+    },
   )
 
   const mainPersonByDay = rows.reduce((acc, row) => {
