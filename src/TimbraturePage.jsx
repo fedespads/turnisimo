@@ -271,32 +271,107 @@ export function TimbraturePage() {
 
   useEffect(() => {
     saveTimbrature(entries)
-     if (entries && entries.length) {
-       // salva anche su IndexedDB, senza bloccare UI
-       saveTimbratureIndexedDB(entries)
-     }
+    if (entries && entries.length) {
+      // salva anche su IndexedDB, senza bloccare UI
+      saveTimbratureIndexedDB(entries)
+    }
   }, [entries])
 
+  // Auto-compila le timbrature mancanti di Simo dalla settimana del piano orario
   useEffect(() => {
     if (!scheduleState || !scheduleState.baseDate || !scheduleState.rows) {
       return
     }
+
+    const monday = new Date(scheduleState.baseDate)
+    if (Number.isNaN(monday.getTime())) return
+
+    const todayKey = getTodayLocalDate()
+
+    const newEntries = []
+
+    for (let offset = 0; offset < 7; offset += 1) {
+      const d = new Date(monday)
+      d.setDate(d.getDate() + offset)
+      const year = d.getFullYear()
+      const month = String(d.getMonth() + 1).padStart(2, '0')
+      const day = String(d.getDate()).padStart(2, '0')
+      const dateKey = `${year}-${month}-${day}`
+
+      // non creare timbrature future
+      if (dateKey > todayKey) continue
+
+      const already = entries.some((e) => e.date === dateKey)
+      if (already) continue
+
+      const jsDay = d.getDay() // 0 = domenica, 1 = lunedì ...
+      const index = jsDay === 0 ? 6 : jsDay - 1
+      const dayName = DAY_ORDER[index]
+
+      const rowsForDay = scheduleState.rows.filter(
+        (row) =>
+          row.day === dayName && row.person === MAIN_PERSON && !row.rest,
+      )
+      if (!rowsForDay.length) continue
+
+      const intervals = rowsForDay[0].intervals || []
+      if (!intervals.length) continue
+
+      const first = intervals[0]
+      const start = normalizeScheduleTime(first.start)
+      const end = normalizeScheduleTime(first.end)
+      if (!start || !end) continue
+
+      newEntries.push({
+        id: `${dateKey}-${MAIN_PERSON}`,
+        date: dateKey,
+        inTime: start,
+        outTime: end,
+      })
+    }
+
+    if (newEntries.length) {
+      setEntries((prev) => {
+        const existingDates = new Set(prev.map((e) => e.date))
+        const filteredNew = newEntries.filter((e) => !existingDates.has(e.date))
+        if (!filteredNew.length) return prev
+        return [...prev, ...filteredNew]
+      })
+    }
+  }, [scheduleState, entries])
+
+  // Quando cambio giorno, mostra sempre l'orario di Simo per quel giorno
+  // o, se esiste già una timbratura salvata, quella salvata.
+  useEffect(() => {
     if (!date) return
 
-    // non sovrascrivere se l'utente ha già messo un orario
-    if (inTime || outTime) return
+    const existing = entries.find((e) => e.date === date)
+    if (existing) {
+      setInTime(existing.inTime || '')
+      setOutTime(existing.outTime || '')
+      return
+    }
+
+    if (!scheduleState || !scheduleState.baseDate || !scheduleState.rows) {
+      setInTime('')
+      setOutTime('')
+      return
+    }
 
     const monday = new Date(scheduleState.baseDate)
     const current = new Date(date)
     if (Number.isNaN(monday.getTime()) || Number.isNaN(current.getTime())) {
+      setInTime('')
+      setOutTime('')
       return
     }
 
-    // range valido: da lunedì a domenica inclusi
-    const diffMs = current.setHours(0, 0, 0, 0) -
-      monday.setHours(0, 0, 0, 0)
+    const diffMs =
+      current.setHours(0, 0, 0, 0) - monday.setHours(0, 0, 0, 0)
     const diffDays = diffMs / (1000 * 60 * 60 * 24)
     if (diffDays < 0 || diffDays > 6) {
+      setInTime('')
+      setOutTime('')
       return
     }
 
@@ -307,19 +382,31 @@ export function TimbraturePage() {
     const rowsForDay = scheduleState.rows.filter(
       (row) => row.day === dayName && row.person === MAIN_PERSON && !row.rest,
     )
-    if (!rowsForDay.length) return
+    if (!rowsForDay.length) {
+      setInTime('')
+      setOutTime('')
+      return
+    }
 
     const intervals = rowsForDay[0].intervals || []
-    if (!intervals.length) return
+    if (!intervals.length) {
+      setInTime('')
+      setOutTime('')
+      return
+    }
 
     const first = intervals[0]
     const start = normalizeScheduleTime(first.start)
     const end = normalizeScheduleTime(first.end)
-    if (!start || !end) return
+    if (!start || !end) {
+      setInTime('')
+      setOutTime('')
+      return
+    }
 
     setInTime(start)
     setOutTime(end)
-  }, [date, inTime, outTime, scheduleState])
+  }, [date, entries, scheduleState])
 
   function handleAdd(e) {
     e.preventDefault()

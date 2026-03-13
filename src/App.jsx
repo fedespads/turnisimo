@@ -28,7 +28,7 @@ function useColorScheme() {
 
 function App() {
   // trigger deploy
-  const [activeTab, setActiveTab] = useState('timbrature')
+  const [activeTab, setActiveTab] = useState('view')
   const colorScheme = useColorScheme()
   const isDark = colorScheme === 'dark'
 
