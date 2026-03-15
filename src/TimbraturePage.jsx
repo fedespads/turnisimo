@@ -412,14 +412,27 @@ export function TimbraturePage() {
     e.preventDefault()
     if (!date || !inTime || !outTime) return
 
-    const newEntry = {
-      id: Date.now().toString(),
-      date,
-      inTime,
-      outTime,
-    }
+    setEntries((prev) => {
+      const index = prev.findIndex((entry) => entry.date === date)
+      if (index !== -1) {
+        const updated = [...prev]
+        updated[index] = {
+          ...updated[index],
+          inTime,
+          outTime,
+        }
+        return updated
+      }
 
-    setEntries((prev) => [newEntry, ...prev])
+      const newEntry = {
+        id: Date.now().toString(),
+        date,
+        inTime,
+        outTime,
+      }
+
+      return [newEntry, ...prev]
+    })
     setDate(getTodayLocalDate())
     setInTime('')
     setOutTime('')
