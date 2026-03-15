@@ -77,6 +77,31 @@ function parseScheduleText(text) {
     rowsByDayAndPerson: {},
   }
 
+  // Regex per rilevare righe con più nomi (formato WhatsApp a riga unica)
+  const multiNameRegex = /(?:^|[\s,])([A-ZÀ-ÖØ-Ý][a-zÀ-ÖØ-öø-ÿ]*)\b/g
+
+  const hasMultipleNames = (body) => {
+    if (!body) return false
+    let count = 0
+    let match
+    while ((match = multiNameRegex.exec(body)) !== null) {
+      count += 1
+      if (count > 1) {
+        multiNameRegex.lastIndex = 0
+        return true
+      }
+    }
+    multiNameRegex.lastIndex = 0
+    return false
+  }
+
+  const isSimpleRestLine = (line) => {
+    const trimmed = line.trim()
+    if (!trimmed) return false
+    // Es: "Kate R", "Simo R" ecc.
+    return /^[A-ZÀ-ÖØ-Ý][a-zÀ-ÖØ-öø-ÿ]*\s+R\b/i.test(trimmed)
+  }
+
   const ensureDayPersonBucket = (day, person) => {
     if (!day || !person) return
     if (!debug.rowsByDayAndPerson[day]) debug.rowsByDayAndPerson[day] = {}
@@ -117,7 +142,12 @@ function parseScheduleText(text) {
     return result
   }
 
-  const dayHeaderRegex = new RegExp(`^(${dayNamesPattern})\\s*:\\s*(.*)$`, 'i')
+  // intestazione giorno con due forme:
+  // "Lunedì:" oppure solo "Lunedì"
+  const dayHeaderRegex = new RegExp(
+    `^(${dayNamesPattern})\\s*(?::\\s*(.*))?$`,
+    'i',
+  )
 
   const parsePersonLine = (day, line, originalIndex) => {
     const trimmed = line.trim()
@@ -243,7 +273,7 @@ function parseScheduleText(text) {
 
     if (headerMatch) {
       const rawDay = headerMatch[1].trim()
-      const bodyPart = headerMatch[2].trim()
+      const bodyPart = (headerMatch[2] || '').trim()
 
       const parsedDay =
         DAY_ORDER.find((d) => d.toLowerCase() === rawDay.toLowerCase()) ||
@@ -258,17 +288,28 @@ function parseScheduleText(text) {
       })
 
       if (bodyPart) {
-        const personLines = splitDayBodyToPersonLines(bodyPart)
-        personLines.forEach((personLine, idx) => {
+        if (isSimpleRestLine(bodyPart) || !hasMultipleNames(bodyPart)) {
+          // Una sola persona in riga (o formato "Nome R"): parsala diretta
           debug.steps.push({
-            type: 'splitPersonLine',
+            type: 'singlePersonFromHeaderBody',
             fromLineIndex: index,
             day: currentDay,
-            personLineIndex: idx,
-            personLine,
+            personLine: bodyPart,
           })
-          parsePersonLine(currentDay, personLine, index)
-        })
+          parsePersonLine(currentDay, bodyPart, index)
+        } else {
+          const personLines = splitDayBodyToPersonLines(bodyPart)
+          personLines.forEach((personLine, idx) => {
+            debug.steps.push({
+              type: 'splitPersonLine',
+              fromLineIndex: index,
+              day: currentDay,
+              personLineIndex: idx,
+              personLine,
+            })
+            parsePersonLine(currentDay, personLine, index)
+          })
+        }
       }
       return
     }
@@ -280,6 +321,30 @@ function parseScheduleText(text) {
         lineIndex: index,
         lineText: line,
       })
+      return
+    }
+
+    // Se la riga è del tipo "Nome R" trattala come una sola persona
+    if (isSimpleRestLine(line)) {
+      debug.steps.push({
+        type: 'singlePersonRestLine',
+        fromLineIndex: index,
+        day: currentDay,
+        personLine: line,
+      })
+      parsePersonLine(currentDay, line, index)
+      return
+    }
+
+    // Se non ci sono più nomi, è una sola persona su questa riga
+    if (!hasMultipleNames(line)) {
+      debug.steps.push({
+        type: 'singlePersonLine',
+        fromLineIndex: index,
+        day: currentDay,
+        personLine: line,
+      })
+      parsePersonLine(currentDay, line, index)
       return
     }
 
