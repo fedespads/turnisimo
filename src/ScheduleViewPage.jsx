@@ -449,7 +449,6 @@ export function ScheduleViewPage() {
   const [text, setText] = useState('')
   const [rows, setRows] = useState([])
   const [baseDate, setBaseDate] = useState('')
-  const [onlyWithMe, setOnlyWithMe] = useState(false)
 
   const daysHeaderRef = useRef(null)
   const daysBodyRef = useRef(null)
@@ -580,7 +579,7 @@ export function ScheduleViewPage() {
 
   function hasOverlapWithMainPerson(day, cellRows) {
     const mainIntervals = mainPersonByDay[day] || []
-    if (!onlyWithMe || !mainIntervals.length || !cellRows.length) return false
+    if (!mainIntervals.length || !cellRows.length) return false
 
     const mainRanges = mainIntervals
       .map((i) => toRange(i))
@@ -606,7 +605,7 @@ export function ScheduleViewPage() {
 
   function hasSomeoneOverlappingMain(day) {
     const mainIntervals = mainPersonByDay[day] || []
-    if (!onlyWithMe || !mainIntervals.length) return false
+    if (!mainIntervals.length) return false
 
     const mainRanges = mainIntervals
       .map((i) => toRange(i))
@@ -656,170 +655,82 @@ export function ScheduleViewPage() {
   }
 
   return (
-    <div className="page schedule-page">
-      <div className="page-header-row">
-        <h2 className="page-title">View turni</h2>
-        <button
-          type="button"
-          className="icon-button-ghost"
-          onClick={() => setIsModalOpen(true)}
-        >
-          Incolla testo
-        </button>
-      </div>
-
-      <section className="card list-card">
-        <h3 className="section-title">Tabella turni</h3>
-        {rows.length > 0 && (
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              alignItems: 'center',
-              gap: '0.4rem',
-              marginBottom: '0.35rem',
-            }}
-          >
-            <label
-              style={{
-                fontSize: '0.75rem',
-                color: 'var(--muted-text)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-              }}
+    <>
+      <section className="schedule-table-section">
+        <div className="schedule-main-header">
+          <h2 className="schedule-main-title">Tabella turni</h2>
+          <div className="schedule-main-actions">
+            <button
+              type="button"
+              className="icon-button-ghost schedule-paste-button"
+              onClick={() => setIsModalOpen(true)}
             >
-              <input
-                type="checkbox"
-                checked={onlyWithMe}
-                onChange={(e) => setOnlyWithMe(e.target.checked)}
-                style={{ width: '16px', height: '16px' }}
-              />
-              Solo in turno con {MAIN_PERSON}
-            </label>
+              Incolla testo
+            </button>
           </div>
-        )}
+        </div>
         {rows.length === 0 ? (
-          <p className="empty-text">
+          <p className="empty-text schedule-empty-text">
             Nessun turno da mostrare. Incolla il testo dei turni per
             vederli qui.
           </p>
         ) : (
-          <div
-            className="table-wrapper"
-            style={{ overflowX: 'hidden' }}
-          >
-            <div
-              style={{
-                display: 'flex',
-                height: '48px',
-                alignItems: 'center',
-                marginBottom: '4px',
-              }}
-            >
+          <div className="table-wrapper schedule-table-wrapper">
+            <div className="schedule-table-header-wrapper">
               <div
-                style={{
-                  flex: '0 0 auto',
-                  minWidth: '120px',
-                  width: '120px',
-                  maxWidth: '120px',
-                }}
+                className="schedule-table-header-left"
               >
                 <div
-                  style={{
-                    fontSize: '0.85rem',
-                    fontWeight: 700,
-                    color: 'var(--muted-text)',
-                    padding: '0 10px 0 6px',
-                    height: '48px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    textAlign: 'center',
-                    lineHeight: 1,
-                  }}
+                  className="schedule-table-header-left-label"
                 >
                   Collaboratore
                 </div>
               </div>
               <div
                 ref={daysHeaderRef}
-                style={{
-                  flex: '1 1 auto',
-                  overflowX: 'hidden',
-                  overflowY: 'hidden',
-                  scrollbarWidth: 'none',
-                  msOverflowStyle: 'none',
-                  pointerEvents: 'none',
-                }}
+                className="schedule-table-header-days"
               >
                 <table
-                  style={{
-                    borderCollapse: 'separate',
-                    borderSpacing: '0 0',
-                    minWidth: '640px',
-                  }}
+                  className="schedule-days-table"
                 >
-                  <thead>
-                    <tr style={{ height: '48px' }}>
+                  <thead className="schedule-days-thead">
+                    <tr className="schedule-days-header-row">
                       {activeDays.map((day) => {
                         const dateForDay = getDateForDay(day)
                         const dayNumber = dateForDay
                           ? String(dateForDay.getDate()).padStart(2, '0')
                           : ''
                         return (
-                        <th
-                          key={day}
-                          style={{
-                            textAlign: 'left',
-                            fontSize: '0.8rem',
-                            color: 'var(--muted-text)',
-                            padding: '0 10px',
-                            minWidth: '120px',
-                            height: '48px',
-                            verticalAlign: 'middle',
-                          }}
-                        >
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              height: '48px',
-                              gap: '6px',
-                            }}
+                          <th
+                            key={day}
+                            className="schedule-day-header-cell"
                           >
-                            <span style={{ fontWeight: 600 }}>{day[0]}</span>
-                            <span
-                              style={{
-                                fontSize: '0.75rem',
-                                color: 'var(--muted-text)',
-                              }}
+                            <div
+                              className="schedule-day-header-content"
                             >
-                              {dayNumber}
-                            </span>
-                          </div>
-                        </th>
+                              <span
+                                className="schedule-day-header-letter"
+                              >
+                                {day[0]}
+                              </span>
+                              <span
+                                className="schedule-day-header-number"
+                              >
+                                {dayNumber}
+                              </span>
+                            </div>
+                          </th>
                         )
                       })}
                       <th
-                        style={{
-                          textAlign: 'left',
-                          fontSize: '0.8rem',
-                          color: 'var(--muted-text)',
-                          padding: '0 10px',
-                          minWidth: '120px',
-                          height: '48px',
-                          verticalAlign: 'middle',
-                        }}
+                        className="schedule-total-header-cell"
                       >
                         <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            height: '48px',
-                          }}
+                          className="schedule-total-header-content"
                         >
-                          <span style={{ fontWeight: 700 }}>Totale</span>
+                          <span className="schedule-total-header-text">
+                            Totale
+                          </span>
                         </div>
                       </th>
                     </tr>
@@ -828,57 +739,27 @@ export function ScheduleViewPage() {
               </div>
             </div>
 
-            <div style={{ display: 'flex' }}>
+            <div className="schedule-table-body-wrapper">
               <div
-                style={{
-                  flex: '0 0 auto',
-                  minWidth: '120px',
-                  width: '120px',
-                  maxWidth: '120px',
-                }}
+                className="schedule-table-body-left"
               >
                 <table
-                  style={{
-                    borderCollapse: 'separate',
-                    borderSpacing: '0 8px',
-                    width: '100%',
-                    tableLayout: 'fixed',
-                  }}
+                  className="schedule-people-table"
                 >
                   <tbody>
                     {people.map((person) => (
-                      <tr key={`left-${person}`}>
+                      <tr
+                        key={`left-${person}`}
+                        className="schedule-person-row schedule-person-row-left"
+                      >
                         <td
-                          style={{
-                            background: 'var(--chip-bg)',
-                            borderRadius: '12px',
-                            padding: '8px 6px 8px 6px',
-                            verticalAlign: 'top',
-                            height: '72px',
-                            maxHeight: '72px',
-                            overflow: 'hidden',
-                            width: '100%',
-                            boxSizing: 'border-box',
-                          }}
+                          className="schedule-person-cell"
                         >
                           <div
-                            style={{
-                              height: '100%',
-                              display: 'flex',
-                              flexDirection: 'column',
-                              justifyContent: 'center',
-                              gap: '4px',
-                              overflow: 'hidden',
-                            }}
+                            className="schedule-person-content"
                           >
                             <div
-                              style={{
-                                fontSize: '0.85rem',
-                                fontWeight: 600,
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                              }}
+                              className="schedule-person-name"
                             >
                               {person}
                             </div>
@@ -891,25 +772,19 @@ export function ScheduleViewPage() {
               </div>
               <div
                 ref={daysBodyRef}
-                style={{
-                  flex: '1 1 auto',
-                  overflowX: 'auto',
-                  WebkitOverflowScrolling: 'touch',
-                  willChange: 'scroll-position',
-                }}
+                className="schedule-days-body"
               >
                 <table
-                  style={{
-                    borderCollapse: 'separate',
-                    borderSpacing: '0 8px',
-                    minWidth: '640px',
-                  }}
+                  className="schedule-days-body-table"
                 >
                   <tbody>
                     {people.map((person) => {
                       let totalMinutes = 0
                       return (
-                        <tr key={`right-${person}`} style={{ height: '72px' }}>
+                        <tr
+                          key={`right-${person}`}
+                          className="schedule-person-row schedule-person-row-right"
+                        >
                           {activeDays.map((day) => {
                             const cellRows = getCellRows(person, day)
                             const isRest =
@@ -936,35 +811,19 @@ export function ScheduleViewPage() {
                             return (
                               <td
                                 key={`${person}-${day}`}
-                                style={{
-                                  background: highlight
-                                    ? 'rgba(56,189,248,0.35)'
-                                    : 'var(--chip-bg)',
-                                  borderRadius: '12px',
-                                  padding: '8px 10px',
-                                  verticalAlign: 'top',
-                                  minWidth: '120px',
-                                  height: '72px',
-                                  maxHeight: '72px',
-                                  overflow: 'hidden',
-                                }}
+                                className={
+                                  'schedule-day-cell' +
+                                  (highlight
+                                    ? ' schedule-day-cell-highlight'
+                                    : '')
+                                }
                               >
                                 <div
-                                  style={{
-                                    height: '100%',
-                                    overflow: 'hidden',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    justifyContent: 'center',
-                                    gap: '4px',
-                                    fontSize: '0.8rem',
-                                  }}
+                                  className="schedule-day-cell-content"
                                 >
                                   {cellRows.length === 0 && (
                                     <span
-                                      style={{
-                                        color: 'var(--muted-text)',
-                                      }}
+                                      className="schedule-day-empty"
                                     >
                                       —
                                     </span>
@@ -974,10 +833,7 @@ export function ScheduleViewPage() {
                                       return (
                                         <span
                                           key={idx}
-                                          style={{
-                                            fontSize: '0.75rem',
-                                            color: 'var(--muted-text)',
-                                          }}
+                                          className="schedule-day-rest-label"
                                         >
                                           Riposo
                                         </span>
@@ -986,7 +842,10 @@ export function ScheduleViewPage() {
 
                                     if (row.intervals.length > 0) {
                                       return (
-                                        <span key={idx}>
+                                        <span
+                                          key={idx}
+                                          className="schedule-day-intervals"
+                                        >
                                           {row.intervals
                                             .map(
                                               (interval) =>
@@ -997,27 +856,30 @@ export function ScheduleViewPage() {
                                       )
                                     }
 
-                                    return <span key={idx}>{row.raw}</span>
+                                    return (
+                                      <span
+                                        key={idx}
+                                        className="schedule-day-raw"
+                                      >
+                                        {row.raw}
+                                      </span>
+                                    )
                                   })}
+                                  {cellMinutes > 0 && (
+                                    <span className="schedule-day-total-hours">
+                                      {formatTotalHours(cellMinutes)}
+                                    </span>
+                                  )}
                                 </div>
                               </td>
                             )
                           })}
                           <td
-                            style={{
-                              background: 'var(--chip-bg)',
-                              borderRadius: '12px',
-                              padding: '8px 10px',
-                              verticalAlign: 'top',
-                              minWidth: '120px',
-                              height: '72px',
-                              maxHeight: '72px',
-                              overflow: 'hidden',
-                              fontSize: '0.85rem',
-                              fontWeight: 700,
-                            }}
+                            className="schedule-total-cell"
                           >
-                            {formatTotalHours(totalMinutes)}
+                            <span className="schedule-total-hours-value">
+                              {formatTotalHours(totalMinutes)}
+                            </span>
                           </td>
                         </tr>
                       )
@@ -1031,10 +893,12 @@ export function ScheduleViewPage() {
       </section>
 
       {isModalOpen && (
-        <div className="modal-backdrop">
-          <div className="card modal-card">
-            <h3 className="section-title">Incolla testo turni</h3>
-            <div className="field-group">
+        <div className="modal-backdrop schedule-modal-backdrop">
+          <div className="card modal-card schedule-modal-card">
+            <h3 className="section-title schedule-modal-title">
+              Incolla testo turni
+            </h3>
+            <div className="field-group schedule-modal-date-group">
               <label className="field-label" htmlFor="baseDate">
                 Lunedì della settimana
               </label>
@@ -1047,30 +911,30 @@ export function ScheduleViewPage() {
               />
             </div>
             <textarea
-              className="field-textarea"
+              className="field-textarea schedule-modal-textarea"
               rows={10}
               value={text}
               onChange={(event) => setText(event.target.value)}
               placeholder="Incolla qui il testo con i turni..."
             />
-            <div className="modal-actions">
+            <div className="modal-actions schedule-modal-actions">
               <button
                 type="button"
-                className="secondary-button"
+                className="secondary-button schedule-modal-clear-button"
                 onClick={() => setText('')}
               >
                 Svuota
               </button>
               <button
                 type="button"
-                className="secondary-button"
+                className="secondary-button schedule-modal-cancel-button"
                 onClick={() => setIsModalOpen(false)}
               >
                 Annulla
               </button>
               <button
                 type="button"
-                className="primary-button"
+                className="primary-button schedule-modal-apply-button"
                 onClick={handleApply}
                 disabled={!text.trim()}
               >
@@ -1080,6 +944,6 @@ export function ScheduleViewPage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }

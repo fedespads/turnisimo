@@ -25,3 +25,4 @@ esempio brunch/
 *.njsproj
 *.sln
 *.sw?
+.vercel

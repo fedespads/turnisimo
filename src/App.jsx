@@ -47,22 +47,53 @@ function App() {
   const iconClassName =
     'nav-icon ' + (isDark ? 'nav-icon-dark' : 'nav-icon-light')
 
+  function handleCopyLocalStorage() {
+    try {
+      const snapshot = {}
+      for (let i = 0; i < window.localStorage.length; i += 1) {
+        const key = window.localStorage.key(i)
+        if (!key) continue
+        snapshot[key] = window.localStorage.getItem(key)
+      }
+
+      const payload = JSON.stringify(snapshot, null, 2)
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(payload).catch(() => {
+          window.prompt('Copia questo backup del localStorage:', payload)
+        })
+      } else {
+        window.prompt('Copia questo backup del localStorage:', payload)
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   return (
-    <div className="app">
-      <header className="app-header">
-        <h1>Turni Simo</h1>
+    <div className="app app-root">
+      <header className="app-header app-header-main app-header-with-actions">
+        <h1 className="app-title">Turni Simo</h1>
+        <button
+          type="button"
+          className="icon-button-ghost app-debug-copy-button"
+          onClick={handleCopyLocalStorage}
+        >
+          Copia dati
+        </button>
       </header>
 
-      <main className="app-main">
+      <main className="app-main app-content">
         {activeTab === 'timbrature' && <TimbraturePage />}
         {activeTab === 'view' && <ScheduleViewPage />}
       </main>
 
-      <nav className="bottom-nav">
+      <nav className="bottom-nav app-bottom-nav">
         <button
           type="button"
           className={
-            'bottom-nav-item' + (activeTab === 'view' ? ' active' : '')
+            'bottom-nav-item bottom-nav-item-view' +
+            (activeTab === 'view' ? ' active' : '')
           }
           onClick={() => setActiveTab('view')}
         >
@@ -75,7 +106,7 @@ function App() {
         <button
           type="button"
           className={
-            'bottom-nav-item' +
+            'bottom-nav-item bottom-nav-item-timbrature' +
             (activeTab === 'timbrature' ? ' active' : '')
           }
           onClick={() => setActiveTab('timbrature')}

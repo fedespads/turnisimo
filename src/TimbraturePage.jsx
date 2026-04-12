@@ -474,22 +474,14 @@ export function TimbraturePage() {
   }, [monthDateKeys, monthEntries])
 
   return (
-    <div className="page timbrature-page">
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '0.5rem',
-          marginBottom: '0.5rem',
-        }}
-      >
-        <h2 className="page-title" style={{ marginBottom: 0 }}>
+    <div className="page timbrature-page timbrature-page-root">
+      <div className="page-header-row timbrature-header-row">
+        <h2 className="page-title timbrature-title">
           Timbrature
         </h2>
         <button
           type="button"
-          className="icon-button-ghost"
+          className="icon-button-ghost timbrature-settings-button"
           onClick={() => setShowBackupPanel((v) => !v)}
         >
           ⚙
@@ -497,18 +489,12 @@ export function TimbraturePage() {
       </div>
 
       {showBackupPanel && (
-        <div className="card" style={{ marginBottom: '0.5rem' }}>
-          <h3 className="section-title">Backup</h3>
-          <div
-            style={{
-              display: 'flex',
-              gap: '8px',
-              flexWrap: 'wrap',
-            }}
-          >
+        <div className="card backup-panel-card">
+          <h3 className="section-title backup-panel-title">Backup</h3>
+          <div className="backup-actions-row">
             <button
               type="button"
-              className="secondary-button"
+              className="secondary-button backup-export-button"
               onClick={() => {
                 try {
                   const payload = JSON.stringify(entries)
@@ -533,7 +519,7 @@ export function TimbraturePage() {
             </button>
             <button
               type="button"
-              className="secondary-button"
+              className="secondary-button backup-import-button"
               onClick={() => {
                 const json = window.prompt(
                   'Incolla qui il backup timbrature (JSON):',
@@ -555,8 +541,11 @@ export function TimbraturePage() {
         </div>
       )}
 
-      <form className="card timbrature-form" onSubmit={handleAdd}>
-        <div className="field-group">
+      <form
+        className="card timbrature-form timbrature-form-card"
+        onSubmit={handleAdd}
+      >
+        <div className="field-group timbrature-date-group">
           <label className="field-label" htmlFor="date">
             Giorno
           </label>
@@ -569,8 +558,8 @@ export function TimbraturePage() {
           />
         </div>
 
-        <div className="field-row">
-          <div className="field-group">
+        <div className="field-row timbrature-time-row">
+          <div className="field-group timbrature-time-group timbrature-time-group-in">
             <label className="field-label" htmlFor="inTime">
               Entrata
             </label>
@@ -582,7 +571,7 @@ export function TimbraturePage() {
               onChange={(e) => setInTime(e.target.value)}
             />
           </div>
-          <div className="field-group">
+          <div className="field-group timbrature-time-group timbrature-time-group-out">
             <label className="field-label" htmlFor="outTime">
               Uscita
             </label>
@@ -596,48 +585,32 @@ export function TimbraturePage() {
           </div>
         </div>
 
-        <button type="submit" className="primary-button">
+        <button
+          type="submit"
+          className="primary-button timbrature-submit-button"
+        >
           Conferma timbratura
         </button>
       </form>
 
-      <section className="card list-card">
-        <h3 className="section-title">Riepilogo del mese</h3>
+      <section className="card list-card timbrature-summary-section">
+        <h3 className="section-title timbrature-summary-title">
+          Riepilogo del mese
+        </h3>
         {monthDateKeys.length === 0 ? (
-          <p className="empty-text">Nessuna timbratura per questo mese.</p>
+          <p className="empty-text timbrature-empty-month-text">
+            Nessuna timbratura per questo mese.
+          </p>
         ) : (
           <>
-            <div
-              style={{
-                display: 'flex',
-                gap: '8px',
-                alignItems: 'center',
-                marginBottom: '8px',
-                justifyContent: 'space-between',
-              }}
-            >
-              <span
-                style={{
-                  fontWeight: 600,
-                  fontSize: '0.8rem',
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.08em',
-                  color: 'var(--muted-text)',
-                }}
-              >
+            <div className="timbrature-month-header-row">
+              <span className="timbrature-month-label">
                 Mese
               </span>
               <select
+                className="timbrature-month-select"
                 value={selectedMonth}
                 onChange={(e) => setSelectedMonth(e.target.value)}
-                style={{
-                  padding: '6px 8px',
-                  borderRadius: '10px',
-                  border: '1px solid var(--input-border)',
-                  background: 'var(--input-bg)',
-                  color: 'var(--text)',
-                  fontSize: '0.85rem',
-                }}
               >
                 {availableMonths.map((month) => (
                   <option key={month} value={month}>
@@ -647,60 +620,33 @@ export function TimbraturePage() {
               </select>
             </div>
 
-            <div className="table-wrapper">
-              <table
-                style={{
-                  borderCollapse: 'collapse',
-                  fontSize: '0.8rem',
-                  width: '100%',
-                }}
-              >
-                <thead>
-                  <tr
-                    style={{
-                      color: 'var(--muted-text)',
-                      borderBottom: '1px solid rgba(55,65,81,0.7)',
-                    }}
-                  >
+            <div className="table-wrapper timbrature-table-wrapper">
+              <table className="timbrature-table">
+                <thead className="timbrature-table-head">
+                  <tr className="timbrature-header-row">
                     <th
-                      style={{
-                        padding: '6px',
-                        textAlign: 'left',
-                        fontWeight: 600,
-                      }}
+                      className="timbrature-header-cell timbrature-header-date"
                     >
                       Data
                     </th>
                     <th
-                      style={{
-                        padding: '6px',
-                        textAlign: 'left',
-                        fontWeight: 600,
-                      }}
+                      className="timbrature-header-cell timbrature-header-in"
                     >
                       Entrata
                     </th>
                     <th
-                      style={{
-                        padding: '6px',
-                        textAlign: 'left',
-                        fontWeight: 600,
-                      }}
+                      className="timbrature-header-cell timbrature-header-out"
                     >
                       Uscita
                     </th>
                     <th
-                      style={{
-                        padding: '6px',
-                        textAlign: 'right',
-                        fontWeight: 600,
-                      }}
+                      className="timbrature-header-cell timbrature-header-hours"
                     >
                       Ore
                     </th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="timbrature-table-body">
                   {monthWeeks.map((week, weekIndex) => {
                     const weekTotalMinutes = week.reduce((acc, dateKey) => {
                       const row = monthEntries[dateKey]
@@ -712,27 +658,14 @@ export function TimbraturePage() {
 
                     return (
                       <React.Fragment key={`week-${weekIndex}`}>
-                        <tr
-                          style={{
-                            background: 'rgba(148,163,184,0.12)',
-                          }}
-                        >
+                        <tr className="timbrature-week-summary-row">
                           <td
-                            style={{
-                              padding: '6px',
-                              fontWeight: 700,
-                            }}
+                            className="timbrature-week-label-cell"
                             colSpan={3}
                           >
                             Settimana {weekIndex + 1}
                           </td>
-                          <td
-                            style={{
-                              padding: '6px',
-                              textAlign: 'right',
-                              fontWeight: 700,
-                            }}
-                          >
+                          <td className="timbrature-week-total-cell">
                             {formatHoursFromMinutes(weekTotalMinutes)}
                           </td>
                         </tr>
@@ -743,22 +676,27 @@ export function TimbraturePage() {
                             ? getMinutesFromTimes(row.inTime, row.outTime)
                             : 0
                           return (
-                            <tr key={dateKey}>
-                              <td style={{ padding: '6px' }}>
+                            <tr
+                              key={dateKey}
+                              className="timbrature-day-row"
+                            >
+                              <td
+                                className="timbrature-day-cell timbrature-day-date-cell"
+                              >
                                 {formatDateLabel(dateKey)}
                               </td>
-                              <td style={{ padding: '6px' }}>
+                              <td
+                                className="timbrature-day-cell timbrature-day-in-cell"
+                              >
                                 {hasEntry ? row.inTime : ''}
                               </td>
-                              <td style={{ padding: '6px' }}>
+                              <td
+                                className="timbrature-day-cell timbrature-day-out-cell"
+                              >
                                 {hasEntry ? row.outTime : ''}
                               </td>
                               <td
-                                style={{
-                                  padding: '6px',
-                                  textAlign: 'right',
-                                  fontWeight: 600,
-                                }}
+                                className="timbrature-day-cell timbrature-day-hours-cell"
                               >
                                 {hasEntry
                                   ? formatHoursFromMinutes(durationMinutes)
@@ -773,15 +711,11 @@ export function TimbraturePage() {
                 </tbody>
               </table>
             </div>
-            <div
-              style={{
-                marginTop: '8px',
-                textAlign: 'right',
-                fontWeight: 700,
-                fontSize: '0.85rem',
-              }}
-            >
-              Totale mese: {formatHoursFromMinutes(monthTotalMinutes)}
+            <div className="timbrature-month-total-row">
+              Totale mese:{' '}
+              <span className="timbrature-month-total-value">
+                {formatHoursFromMinutes(monthTotalMinutes)}
+              </span>
             </div>
           </>
         )}
